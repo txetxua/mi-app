@@ -1,45 +1,23 @@
-# syntax = docker/dockerfile:1
+# Usar una imagen base de Node.js
+FROM node:20
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=22.13.1
-FROM node:${NODE_VERSION}-slim AS base
-
-LABEL fly_launch_runtime="Node.js"
-
-# Node.js app lives here
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Set production environment
-ENV NODE_ENV="production"
+# Copiar los archivos de package.json y package-lock.json
+COPY package*.json ./
 
+# Instalar dependencias
+RUN npm install
 
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
-
-# Install node modules
-COPY package-lock.json package.json ./
-RUN npm ci --include=dev
-
-# Copy application code
+# Copiar el resto de los archivos del proyecto
 COPY . .
 
-# Build application
+# Construir la aplicación
 RUN npm run build
 
-# Remove development dependencies
-RUN npm prune --omit=dev
-
-
-# Final stage for app image
-FROM base
-
-# Copy built application
-COPY --from=build /app /app
-
-# Start the server by default, this can be overwritten at runtime
+# Exponer el puerto en el que corre la aplicación
 EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+
+# Comando para ejecutar la aplicación
+CMD ["npm", "start"]
